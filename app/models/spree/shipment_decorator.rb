@@ -5,6 +5,10 @@ Spree::Shipment.class_eval do
     nil # TODO: Work out how to properly generate this
   end
 
+  def easypost_shipment
+    @ep_shipment ||= EasyPost::Shipment.retrieve(selected_easy_post_shipment_id)
+  end
+
   private
 
   def selected_easy_post_rate_id
@@ -13,10 +17,6 @@ Spree::Shipment.class_eval do
 
   def selected_easy_post_shipment_id
     selected_shipping_rate.easy_post_shipment_id
-  end
-
-  def easypost_shipment
-    @ep_shipment ||= EasyPost::Shipment.retrieve(selected_easy_post_shipment_id)
   end
 
   def buy_easypost_rate
