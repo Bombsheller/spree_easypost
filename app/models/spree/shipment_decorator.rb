@@ -1,9 +1,11 @@
 Spree::Shipment.class_eval do
   state_machine.before_transition :to => :shipped, :do => :buy_easypost_rate
-  @@tracking_urls = {/USPS/i => "https://tools.usps.com/go/TrackConfirmAction.action?origTrackNum=",
-                     /FedEx/i => "https://www.fedex.com/fedextrack/WTRK/index.html?action=track&trackingnumber=",
-                     /UPS/i => "http://wwwapps.ups.com/WebTracking/track?track=yes&trackNums=",
-                     /DHL/i => "http://webtrack.dhlglobalmail.com/?mobile=&trackingnumber="}
+  class_variable_set(:@@tracking_urls,
+                      {/USPS/i => "https://tools.usps.com/go/TrackConfirmAction.action?origTrackNum=",
+                       /FedEx/i => "https://www.fedex.com/fedextrack/WTRK/index.html?action=track&trackingnumber=",
+                       /UPS/i => "http://wwwapps.ups.com/WebTracking/track?track=yes&trackNums=",
+                       /DHL/i => "http://webtrack.dhlglobalmail.com/?mobile=&trackingnumber="}
+                    )
 
   def tracking_url
     shipping_method_name = self.selected_shipping_rate.name
