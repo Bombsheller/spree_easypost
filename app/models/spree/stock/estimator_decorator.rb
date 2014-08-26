@@ -43,7 +43,7 @@ Spree::Stock::Estimator.class_eval do
     ep_address_attrs[:city] = address.city
     ep_address_attrs[:state] = address.state ? address.state.abbr : address.state_name
     ep_address_attrs[:zip] = address.zipcode
-    ep_address_attrs[:phone] = address.phone
+    ep_address_attrs[:phone] = address.phone if address == package.stock_location
 
     ::EasyPost::Address.create(ep_address_attrs)
   end
