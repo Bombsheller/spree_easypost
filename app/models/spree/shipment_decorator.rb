@@ -29,11 +29,13 @@ Spree::Shipment.class_eval do
   end
 
   def buy_easypost_rate
-    rate = easypost_shipment.rates.find do |rate|
-      rate.id == selected_easy_post_rate_id
-    end
+    if selected_easy_post_rate_id
+      rate = easypost_shipment.rates.find do |rate|
+        rate.id == selected_easy_post_rate_id
+      end
 
-    easypost_shipment.buy(rate)
-    self.tracking = easypost_shipment.tracking_code
+      easypost_shipment.buy(rate)
+      self.tracking = easypost_shipment.tracking_code
+    end
   end
 end
