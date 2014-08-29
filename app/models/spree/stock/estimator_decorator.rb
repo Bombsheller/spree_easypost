@@ -5,6 +5,7 @@ Spree::Stock::Estimator.class_eval do
     from_address = process_address(package.stock_location)
     to_address = process_address(order.ship_address)
     parcel = build_parcel(package)
+    customs_info = build_customs_info(package) if going_international?(package.stock_location, order.ship_address)
     shipment = build_shipment(from_address, to_address, parcel)
     rates = shipment.rates.sort_by { |r| r.rate.to_i }
 
@@ -58,6 +59,36 @@ Spree::Stock::Estimator.class_eval do
     parcel_options[:predefined_package] = Spree::Config.preferred_international_packaging if Spree::Config.preferred_international_packaging
 
     parcel = ::EasyPost::Parcel.create(parcel_options)
+  end
+
+  def going_international? from_address, to_address
+    from_address.country.iso == to_address.country.iso
+  end
+
+  # See https://www.easypost.com/customs-guide. In Bombsheller's case we only have one product,
+  # so the customs info is stored in Spree settings. For others, the product or variant
+  # is a better place for tariff number.
+  def build_customs_info package
+    customs_items = []
+    if Spree::Config.harmonized_tariff_number # Only shipping one product
+      customs_items << EasyPost::CustomsItem.create(
+        description: Spree::Config.item_customs_description,
+        quantity: package.inventory_units,
+        value: package.inventory_units.to_a.collect(&:variant).collect(&:price).inject(:+).to_i,
+        weight: package.inventory_units.to_a.collect(&:variant).collect(&:weight).inject(:+).to_i,
+        hs_tariff_number: Spree::Config.harmonized_tariff_number,
+        origin_country: package.stock_location.country.iso)
+    else
+      # TODO: Group by tariff number and perform the above steps with each group.
+    end
+
+    customs_info = EasyPost::CustomsInfo.create(
+      eel_pfc: package.order.ship_address.country.iso == 'CA' ? 'NOEEI 30.36' : 'NOEEI 30.37(a)',
+      customs_certify: true,
+      customs_signer: Spree::Config.customs_signer,
+      contents_type: 'merchandise',
+      customs_items: customs_items
+      )
   end
 
   def build_shipment(from_address, to_address, parcel)
