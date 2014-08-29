@@ -5,8 +5,11 @@ Spree::Stock::Estimator.class_eval do
     from_address = process_address(package.stock_location)
     to_address = process_address(order.ship_address)
     parcel = build_parcel(package)
-    customs_info = build_customs_info(package) if going_international?(package.stock_location, order.ship_address)
-    shipment = build_shipment(from_address, to_address, parcel)
+    shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
+
+    shipment_info_hash[:customs_info] = build_customs_info(package) if going_international?(package.stock_location, order.ship_address)
+
+    shipment = build_shipment(shipment_info_hash)
     rates = shipment.rates.sort_by { |r| r.rate.to_i }
 
     if rates.any?
@@ -62,7 +65,7 @@ Spree::Stock::Estimator.class_eval do
   end
 
   def going_international? from_address, to_address
-    from_address.country.iso == to_address.country.iso
+    !(from_address.country.iso == to_address.country.iso)
   end
 
   # See https://www.easypost.com/customs-guide. In Bombsheller's case we only have one product,
@@ -70,12 +73,13 @@ Spree::Stock::Estimator.class_eval do
   # is a better place for tariff number.
   def build_customs_info package
     customs_items = []
+    line_items = package.contents.collect(&:line_item)
     if Spree::Config.harmonized_tariff_number # Only shipping one product
       customs_items << EasyPost::CustomsItem.create(
         description: Spree::Config.item_customs_description,
-        quantity: package.inventory_units,
-        value: package.inventory_units.to_a.collect(&:variant).collect(&:price).inject(:+).to_i,
-        weight: package.inventory_units.to_a.collect(&:variant).collect(&:weight).inject(:+).to_i,
+        quantity: line_items.collect(&:quantity).inject(:+).to_i,
+        value: line_items.collect(&:variant).collect(&:price).inject(:+).to_i,
+        weight: line_items.collect(&:variant).collect(&:weight).inject(:+).to_i,
         hs_tariff_number: Spree::Config.harmonized_tariff_number,
         origin_country: package.stock_location.country.iso)
     else
@@ -91,12 +95,16 @@ Spree::Stock::Estimator.class_eval do
       )
   end
 
-  def build_shipment(from_address, to_address, parcel)
-    shipment = ::EasyPost::Shipment.create(
+  def build_shipment_info_hash(from_address, to_address, parcel)
+    {
       :to_address => to_address,
       :from_address => from_address,
       :parcel => parcel
-    )
+    }
+  end
+
+  def build_shipment(shipment_info_hash)
+    shipment = ::EasyPost::Shipment.create(shipment_info_hash)
   end
 
 end
