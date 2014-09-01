@@ -1,8 +1,6 @@
 $(document).ready(function () {
     'use strict';
 
-    console.log('hola!');
-
     var ship_button = $('[data-hook=admin_shipment_form] a.ship');
 
     ship_button.off('click');
