@@ -4,10 +4,13 @@ Spree::Stock::Estimator.class_eval do
 
     from_address = process_address(package.stock_location)
     to_address = process_address(order.ship_address)
-    parcel = build_parcel(package)
+
+    international_shipment = going_international?(package.stock_location, order.ship_address)
+
+    parcel = build_parcel(package, international_shipment)
     shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
 
-    shipment_info_hash[:customs_info] = build_customs_info(package) if going_international?(package.stock_location, order.ship_address)
+    shipment_info_hash[:customs_info] = build_customs_info(package) if international_shipment
 
     shipment = build_shipment(shipment_info_hash)
     rates = shipment.rates.sort_by { |r| r.rate.to_i }
@@ -53,13 +56,13 @@ Spree::Stock::Estimator.class_eval do
     ::EasyPost::Address.create(ep_address_attrs)
   end
 
-  def build_parcel(package)
+  def build_parcel(package, international_shipment)
     total_weight = package.contents.sum do |item|
       item.quantity * item.variant.weight
     end
 
     parcel_options = {:weight => total_weight}
-    parcel_options[:predefined_package] = Spree::Config.preferred_international_packaging if Spree::Config.preferred_international_packaging
+    parcel_options[:predefined_package] = Spree::Config.preferred_international_packaging if international_shipment
 
     parcel = ::EasyPost::Parcel.create(parcel_options)
   end
