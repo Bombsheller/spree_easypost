@@ -8,14 +8,27 @@ Spree::Stock::Estimator.class_eval do
     international_shipment = going_international?(package.stock_location, order.ship_address)
 
     parcel = build_parcel(package, international_shipment)
-    shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
 
-    shipment_info_hash[:customs_info] = build_customs_info(package) if international_shipment
+    rates_with_preferred_packaging = get_rates_for_parcel_with_from_and_to_addresses(to_address, from_address, parcel, package, international_shipment)
 
-    shipment = build_shipment(shipment_info_hash)
-    rates = shipment.rates.sort_by { |r| r.rate.to_i }
+    # This block handles the edge case of people putting in valid addresses but
+    # getting no results due to preferred packaging. For example, if someone puts
+    # in an international PO box and the preferred international packaging is
+    # FedExPak, EasyPost will not return any USPS rates to respect the preferred
+    # packaging, but FedEx doens't deliver to PO boxes, so the user won't be able
+    # to receive the product! The solution is to try again, ignoring international
+    # preferred packaging by passing in false to the build_parcel method while
+    # keeping customs info intact by passing in international_shipment boolean to
+    # the get_rates_for_parcel_with_from_and_to_addresses method.
+    if rates_with_preferred_packaging.any?
+      rates = rates_with_preferred_packaging
+    else
+      parcel = build_parcel(package, false)
+      rates = get_rates_for_parcel_with_from_and_to_addresses(to_address, from_address, parcel, package, international_shipment)
+    end
 
     if rates.any?
+
       rates.each do |rate|
         package.shipping_rates << Spree::ShippingRate.new(
           :name => "#{rate.carrier} #{rate.service}",
@@ -23,6 +36,14 @@ Spree::Stock::Estimator.class_eval do
           :easy_post_shipment_id => rate.shipment_id,
           :easy_post_rate_id => rate.id
         )
+      end
+
+      # If free shipping is enabled, present a price of 0 to the user.
+      # EasyPost still charges whatever they normally would, though ;)
+      if Spree::ShippingCategory.find_by_name('Free Shipping')
+        to_make_free = package.shipping_rates.first
+        to_make_free.cost = 0
+        to_make_free.save!
       end
 
       # Sets cheapest rate to be selected by default
@@ -35,6 +56,16 @@ Spree::Stock::Estimator.class_eval do
   end
 
   private
+
+  def get_rates_for_parcel_with_from_and_to_addresses(to_address, from_address, parcel, package, international_shipment)
+    shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
+
+    shipment_info_hash[:customs_info] = build_customs_info(package) if international_shipment
+
+    shipment = build_shipment(shipment_info_hash)
+
+    shipment.rates.sort_by { |r| r.rate.to_i }
+  end
 
   def process_address(address)
     ep_address_attrs = {}
