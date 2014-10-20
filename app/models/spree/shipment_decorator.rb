@@ -34,6 +34,8 @@ Spree::Shipment.class_eval do
         rate.id == selected_easy_post_rate_id
       end
 
+      logger.debug { "EasyPost shipping rate: #{rate}" }
+
       easypost_shipment.buy(rate)
       self.tracking = easypost_shipment.tracking_code
     end

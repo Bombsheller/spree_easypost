@@ -40,7 +40,9 @@ Spree::Stock::Estimator.class_eval do
 
       # If free shipping is enabled, present a price of 0 to the user.
       # EasyPost still charges whatever they normally would, though ;)
-      if Spree::ShippingCategory.find_by_name('Free Shipping')
+      # In Bombsheller's case, we don't want to foot the bill for international
+      # shipments, so we don't make those have a cost of 0.
+      if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
         to_make_free = package.shipping_rates.first
         to_make_free.cost = 0
         to_make_free.save!

@@ -3,6 +3,8 @@ module Spree
     class ShipmentsController < ResourceController
       def shipping_label
         spree_shipment = Spree::Shipment.find(params[:id])
+        logger.debug { "Spree::Shipment: #{spree_shipment}" }
+        logger.debug { "EasyPost::Shipment: #{spree_shipment.easypost_shipment}" }
         postage_label_url = spree_shipment.easypost_shipment.postage_label["label_url"]
         if postage_label_url
           redirect_to postage_label_url
