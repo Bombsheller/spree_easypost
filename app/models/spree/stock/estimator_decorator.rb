@@ -27,24 +27,26 @@ Spree::Stock::Estimator.class_eval do
           :easy_post_rate_id => rate.id
         )
       end
-
-      # If free shipping is enabled, present a price of 0 to the user.
-      # EasyPost still charges whatever they normally would, though ;)
-      # In Bombsheller's case, we don't want to foot the bill for international
-      # shipments, so we don't make those have a cost of 0.
-      if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
-        to_make_free = package.shipping_rates.first
-        to_make_free.cost = 0
-        to_make_free.save!
-      end
-
-      # Sets cheapest rate to be selected by default
-      package.shipping_rates.first.selected = true
-
-      package.shipping_rates
     else
-      []
+      # Fall back to one of the shipping methods in the admin panel so we can at
+      # least allow the customer to buy product.
+      package.shipping_rates = get_fallback_shipping_methods(international_shipment)
     end
+
+    # If free shipping is enabled, present a price of 0 to the user.
+    # EasyPost still charges whatever they normally would, though ;)
+    # In Bombsheller's case, we don't want to foot the bill for international
+    # shipments, so we don't make those have a cost of 0.
+    if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
+      to_make_free = package.shipping_rates.first
+      to_make_free.cost = 0
+      to_make_free.save!
+    end
+
+    # Sets cheapest rate to be selected by default
+    package.shipping_rates.first.selected = true
+
+    package.shipping_rates
   end
 
   private
@@ -121,6 +123,23 @@ Spree::Stock::Estimator.class_eval do
 
   def build_shipment(shipment_info_hash)
     shipment = ::EasyPost::Shipment.create(shipment_info_hash)
+  end
+
+  def get_fallback_shipping_methods(international_shipment)
+    spree_shipping_methods = Spree::ShippingMethod.all
+    if international_shipment
+      # First filter to international shipping methods then to methods that use
+      # preferred packaging, assuming preferred packaging has one word of method's
+      # name in it, i.e. "FedExPak" contains "FedEx."
+      international_methods = spree_shipping_methods.select { |m| m.name.match /international/i }
+      packaging_name = Spree::Config.preferred_international_packaging
+      methods = international_methods.select { |m| !m.name.split.select { |word| packaging_name.match word }.empty? }
+      cost = 25
+    else
+      methods = spree_shipping_methods.select { |m| !m.name.match /international/i }
+      cost = 10
+    end
+    methods.map { |method| Spree::ShippingRate.new(name: method.name, cost: cost, shipping_method: method) }
   end
 
 end
