@@ -29,15 +29,19 @@ Spree::Shipment.class_eval do
   end
 
   def buy_easypost_rate
-    if selected_easy_post_rate_id
-      rate = easypost_shipment.rates.find do |rate|
-        rate.id == selected_easy_post_rate_id
+    if !self.tracking
+      if selected_easy_post_rate_id
+        rate = easypost_shipment.rates.find do |rate|
+          rate.id == selected_easy_post_rate_id
+        end
+
+        logger.debug { "EasyPost shipping rate: #{rate}" }
+
+        easypost_shipment.buy(rate)
+        self.tracking = easypost_shipment.tracking_code
+      else
+        raise "This shipment has not been purchased with EasyPost. Please manually purchase label and fill in details."
       end
-
-      logger.debug { "EasyPost shipping rate: #{rate}" }
-
-      easypost_shipment.buy(rate)
-      self.tracking = easypost_shipment.tracking_code
     end
   end
 end
