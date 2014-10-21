@@ -1,4 +1,17 @@
 Spree::Stock::Estimator.class_eval do
+  # This method is overriden from the original in Spree::Stock::Estimator at line
+  # 11. How much more complicated this method has become!
+  # It's purpose is to return all possible shipping rates for the package passed
+  # in the parameter. It works by informing EasyPost of all of the parameters
+  # necessary for description of a package, that is shipper address, recipient
+  # address, customs info, etc. as necessary.
+  # Some complication occurs when EasyPost does not return any rates. This
+  # has happened to us (team Bombsheller) when pathalogical international
+  # addresses have been supplied by users. Because we only use FedEx to ship
+  # internationally, when FedEx rejects that address, EasyPost has no rates to
+  # offer us, and we're toast. To combat this, we fall back on Spree::ShippingMethod's
+  # that live in the admin console. These describe how we shipped things before
+  # EasyPost, so presumably we can use them again.
   def shipping_rates(package)
     order = package.order
 
@@ -125,6 +138,8 @@ Spree::Stock::Estimator.class_eval do
     shipment = ::EasyPost::Shipment.create(shipment_info_hash)
   end
 
+  # Selects Spree::ShippingMethod's appropriately and generates Spree::ShippingRate's
+  # from those.
   def get_fallback_shipping_methods(international_shipment)
     spree_shipping_methods = Spree::ShippingMethod.all
     if international_shipment
