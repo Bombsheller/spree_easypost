@@ -109,11 +109,14 @@ Spree::Stock::Estimator.class_eval do
   def build_customs_info package
     customs_items = []
     line_items = package.contents.collect(&:line_item)
+    value = line_items.sum do |item|
+      item.variant.price * item.quantity
+    end
     if Spree::Config.harmonized_tariff_number # Only shipping one product
       customs_items << EasyPost::CustomsItem.create(
         description: Spree::Config.item_customs_description,
         quantity: line_items.collect(&:quantity).inject(:+).to_i,
-        value: line_items.collect(&:variant).collect(&:price).inject(:+).to_i,
+        value: value,
         weight: line_items.collect(&:variant).collect(&:weight).inject(:+).to_i,
         hs_tariff_number: Spree::Config.harmonized_tariff_number,
         origin_country: package.stock_location.country.iso)
