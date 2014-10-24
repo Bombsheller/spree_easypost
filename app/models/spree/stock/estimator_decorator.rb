@@ -1,22 +1,26 @@
 Spree::Stock::Estimator.class_eval do
+  # This method is overriden from the original in Spree::Stock::Estimator at line
+  # 11. How much more complicated this method has become!
+  # It's purpose is to return all possible shipping rates for the package passed
+  # in the parameter. It works by informing EasyPost of all of the parameters
+  # necessary for description of a package, that is shipper address, recipient
+  # address, customs info, etc. as necessary.
+  # Some complication occurs when EasyPost does not return any rates. This
+  # has happened to us (team Bombsheller) when pathalogical international
+  # addresses have been supplied by users. Because we only use FedEx to ship
+  # internationally, when FedEx rejects that address, EasyPost has no rates to
+  # offer us, and we're toast. To combat this, we fall back on Spree::ShippingMethod's
+  # that live in the admin console. These describe how we shipped things before
+  # EasyPost, so presumably we can use them again.
   def shipping_rates(package)
     order = package.order
-
-    from_address = process_address(package.stock_location)
-    to_address = process_address(order.ship_address)
-
     international_shipment = going_international?(package.stock_location, order.ship_address)
 
-    parcel = build_parcel(package, international_shipment)
-    shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
+    easypost_rates = get_easypost_rates(package, order, international_shipment)
 
-    shipment_info_hash[:customs_info] = build_customs_info(package) if international_shipment
+    if easypost_rates.any?
 
-    shipment = build_shipment(shipment_info_hash)
-    rates = shipment.rates.sort_by { |r| r.rate.to_i }
-
-    if rates.any?
-      rates.each do |rate|
+      easypost_rates.each do |rate|
         package.shipping_rates << Spree::ShippingRate.new(
           :name => "#{rate.carrier} #{rate.service}",
           :cost => rate.rate,
@@ -24,19 +28,47 @@ Spree::Stock::Estimator.class_eval do
           :easy_post_rate_id => rate.id
         )
       end
-
-      # Sets cheapest rate to be selected by default
-      package.shipping_rates.first.selected = true
-
-      package.shipping_rates
     else
-      []
+      # Fall back to one of the shipping methods in the admin panel so we can at
+      # least allow the customer to buy product.
+      spree_shipping_rates = get_fallback_shipping_rates(international_shipment)
+      package.shipping_rates = spree_shipping_rates
     end
+
+    # If free shipping is enabled, present a price of 0 to the user.
+    # EasyPost still charges whatever they normally would, though ;)
+    # In Bombsheller's case, we don't want to foot the bill for international
+    # shipments, so we don't make those have a cost of 0.
+    if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
+      to_make_free = package.shipping_rates.first
+      to_make_free.cost = 0
+      to_make_free.save!
+    end
+
+    # Sets cheapest rate to be selected by default
+    package.shipping_rates.first.selected = true
+
+    package.shipping_rates
   end
 
   private
 
-  def process_address(address)
+  def get_easypost_rates(package, order, international_shipment)
+    from_address = build_easypost_address(package.stock_location)
+    to_address = build_easypost_address(order.ship_address)
+
+    parcel = build_easypost_parcel(package, international_shipment)
+
+    shipment_info_hash = build_shipment_info_hash(from_address, to_address, parcel)
+
+    shipment_info_hash[:customs_info] = build_customs_info(package) if international_shipment
+
+    shipment = build_easypost_shipment(shipment_info_hash)
+
+    rates = shipment.rates.sort_by { |r| r.rate.to_i }
+  end
+
+  def build_easypost_address(address)
     ep_address_attrs = {}
     # Stock locations do not have "company" attributes,
     ep_address_attrs[:company] = if address.respond_to?(:company)
@@ -56,7 +88,7 @@ Spree::Stock::Estimator.class_eval do
     ::EasyPost::Address.create(ep_address_attrs)
   end
 
-  def build_parcel(package, international_shipment)
+  def build_easypost_parcel(package, international_shipment)
     total_weight = package.contents.sum do |item|
       item.quantity * item.variant.weight
     end
@@ -77,11 +109,14 @@ Spree::Stock::Estimator.class_eval do
   def build_customs_info package
     customs_items = []
     line_items = package.contents.collect(&:line_item)
+    value = line_items.sum do |item|
+      item.variant.price * item.quantity
+    end
     if Spree::Config.harmonized_tariff_number # Only shipping one product
       customs_items << EasyPost::CustomsItem.create(
         description: Spree::Config.item_customs_description,
         quantity: line_items.collect(&:quantity).inject(:+).to_i,
-        value: line_items.collect(&:variant).collect(&:price).inject(:+).to_i,
+        value: value,
         weight: line_items.collect(&:variant).collect(&:weight).inject(:+).to_i,
         hs_tariff_number: Spree::Config.harmonized_tariff_number,
         origin_country: package.stock_location.country.iso)
@@ -106,8 +141,27 @@ Spree::Stock::Estimator.class_eval do
     }
   end
 
-  def build_shipment(shipment_info_hash)
+  def build_easypost_shipment(shipment_info_hash)
     shipment = ::EasyPost::Shipment.create(shipment_info_hash)
+  end
+
+  # Selects Spree::ShippingMethod's appropriately and generates Spree::ShippingRate's
+  # from those.
+  def get_fallback_shipping_rates(international_shipment)
+    spree_shipping_methods = Spree::ShippingMethod.all
+    if international_shipment
+      # First filter to international shipping methods then to methods that use
+      # preferred packaging, assuming preferred packaging has one word of method's
+      # name in it, i.e. "FedExPak" contains "FedEx."
+      international_methods = spree_shipping_methods.select { |m| m.name.match /international/i }
+      packaging_name = Spree::Config.preferred_international_packaging
+      methods = international_methods.select { |m| !m.name.split.select { |word| packaging_name.match word }.empty? }
+      cost = 25
+    else
+      methods = spree_shipping_methods.select { |m| !m.name.match /international/i }
+      cost = 10
+    end
+    methods.map { |method| Spree::ShippingRate.new(name: method.name, cost: cost, shipping_method: method) }
   end
 
 end

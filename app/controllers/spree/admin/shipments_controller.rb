@@ -1,8 +1,12 @@
 module Spree
   module Admin
     class ShipmentsController < ResourceController
+      # A handy helper to make getting shipping labels easier. The admin user
+      # never has to go to EasyPost's site to get the shipping label.
       def shipping_label
         spree_shipment = Spree::Shipment.find(params[:id])
+        logger.debug { "Spree::Shipment: #{spree_shipment}" }
+        logger.debug { "EasyPost::Shipment: #{spree_shipment.easypost_shipment}" }
         postage_label_url = spree_shipment.easypost_shipment.postage_label["label_url"]
         if postage_label_url
           redirect_to postage_label_url
