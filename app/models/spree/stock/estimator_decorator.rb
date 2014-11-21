@@ -22,7 +22,7 @@ Spree::Stock::Estimator.class_eval do
 
       easypost_rates.each do |rate|
         package.shipping_rates << Spree::ShippingRate.new(
-          :name => "#{rate.carrier} #{rate.service}",
+          :name => "#{rate.carrier} #{rate.service.humanize}",
           :cost => rate.rate,
           :easy_post_shipment_id => rate.shipment_id,
           :easy_post_rate_id => rate.id
