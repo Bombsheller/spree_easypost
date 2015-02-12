@@ -70,11 +70,11 @@ Spree::Stock::Estimator.class_eval do
 
   def build_easypost_address(address)
     ep_address_attrs = {}
-    # Stock locations do not have "company" attributes,
+    # Stock locations do not have "company" attributes.
     ep_address_attrs[:company] = if address.respond_to?(:company)
       address.company
     else
-      Spree::Config[:site_name]
+      address.name
     end
     ep_address_attrs[:name] = address.full_name if address.respond_to?(:full_name)
     ep_address_attrs[:street1] = address.address1
