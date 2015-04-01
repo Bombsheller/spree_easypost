@@ -12,7 +12,10 @@ $(document).ready(function () {
       var url = Spree.url(Spree.routes.shipments_api + '/' + shipment_number + '/ship.json');
       $.ajax({
         type: 'PUT',
-        url: url
+        url: url,
+        data: {
+          token: Spree.api_key
+        }
       }).done(function () {
         window.location.reload();
       }).error(function (msg) {
