@@ -139,7 +139,7 @@ Spree::Stock::Estimator.class_eval do
       :from_address => from_address,
       :parcel => parcel,
       :options => {
-        :label_format => 'PDF'
+        :label_format => 'EPL2'
       }
     }
   end
