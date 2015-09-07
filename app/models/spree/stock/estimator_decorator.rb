@@ -40,9 +40,12 @@ Spree::Stock::Estimator.class_eval do
     # In Bombsheller's case, we don't want to foot the bill for international
     # shipments, so we don't make those have a cost of 0.
     if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
-      to_make_free = package.shipping_rates.find_by_name('USPS First')      
-      to_make_free.cost = 0
-      to_make_free.save!
+      package.shipping_rates.each do |rate| 
+        if rate.name == "USPS First"
+          rate.cost = 0
+          rate.save!
+        end
+      end      
     end
 
     # Sets cheapest rate to be selected by default
