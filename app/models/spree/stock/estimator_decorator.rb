@@ -32,7 +32,7 @@ Spree::Stock::Estimator.class_eval do
         rate_name = "#{rate.carrier} #{rate.service.humanize}"
         if service_list.include? rate.service.humanize 
           package.shipping_rates << Spree::ShippingRate.new(
-            :name => "#{rate.carrier} #{rate.service.humanize} #{rate.id}",
+            :name => "#{rate.carrier} #{rate.service.humanize}",
             :cost => rate.rate,
             :easy_post_shipment_id => rate.shipment_id,
             :easy_post_rate_id => rate.id
@@ -51,10 +51,12 @@ Spree::Stock::Estimator.class_eval do
     # In Bombsheller's case, we don't want to foot the bill for international
     # shipments, so we don't make those have a cost of 0.
     if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
+      made_free_option = false
       package.shipping_rates.each do |rate| 
-        if rate.name == "USPS First"
+        if rate.name.include? == "USPS" && made_free_option == false
           rate.cost = 0
           rate.save!
+          made_free_option = true
         end
       end      
     end
