@@ -30,7 +30,7 @@ Spree::Stock::Estimator.class_eval do
 
       easypost_rates.each do |rate|
         rate_name = "#{rate.carrier} #{rate.service.humanize}"
-        if service_list.include? rate_name 
+        if service_list.include? rate.service.humanize 
           package.shipping_rates << Spree::ShippingRate.new(
             :name => "#{rate.carrier} #{rate.service.humanize}",
             :cost => rate.rate,
@@ -68,7 +68,7 @@ Spree::Stock::Estimator.class_eval do
   private
   
   def service_list 
-    ['USPS First', 'USPS Priority', 'Fedex Fedex express saver', 'Fedex Standard overnight']
+    ['First', 'Priority', 'Fedex express saver', 'Standard overnight']
   end
 
   def get_easypost_rates(package, order, international_shipment)
