@@ -12,6 +12,14 @@ Spree::Stock::Estimator.class_eval do
   # offer us, and we're toast. To combat this, we fall back on Spree::ShippingMethod's
   # that live in the admin console. These describe how we shipped things before
   # EasyPost, so presumably we can use them again.
+  
+  #cut down easy post rates to 
+  
+  #USPS First - Free for orders of one unit
+  #USPS Priority - Free for orders of multiple units
+  #FedEx Fedex express saver - Upcharge
+  #FedEx Standard overnight - Upcharge
+  
   def shipping_rates(package)
     order = package.order
     international_shipment = going_international?(package.stock_location, order.ship_address)
@@ -21,12 +29,15 @@ Spree::Stock::Estimator.class_eval do
     if easypost_rates.any?
 
       easypost_rates.each do |rate|
-        package.shipping_rates << Spree::ShippingRate.new(
-          :name => "#{rate.carrier} #{rate.service.humanize}",
-          :cost => rate.rate,
-          :easy_post_shipment_id => rate.shipment_id,
-          :easy_post_rate_id => rate.id
-        )
+        rate_name = "#{rate.carrier} #{rate.service.humanize}"
+        if service_list.include? rate_name 
+          package.shipping_rates << Spree::ShippingRate.new(
+            :name => "#{rate.carrier} #{rate.service.humanize}",
+            :cost => rate.rate,
+            :easy_post_shipment_id => rate.shipment_id,
+            :easy_post_rate_id => rate.id
+          )
+        end
       end
     else
       # Fall back to one of the shipping methods in the admin panel so we can at
@@ -55,6 +66,10 @@ Spree::Stock::Estimator.class_eval do
   end
 
   private
+  
+  def service_list 
+    ['USPS First', 'USPS Priority', 'Fedex Fedex express saver', 'Fedex Standard overnight']
+  end
 
   def get_easypost_rates(package, order, international_shipment)
     from_address = build_easypost_address(package.stock_location)
