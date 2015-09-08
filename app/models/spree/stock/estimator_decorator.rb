@@ -32,7 +32,7 @@ Spree::Stock::Estimator.class_eval do
         rate_name = "#{rate.carrier} #{rate.service.humanize}"
         if service_list.include? rate.service.humanize 
           package.shipping_rates << Spree::ShippingRate.new(
-            :name => "#{rate.carrier} #{rate.service.humanize}",
+            :name => "#{rate.carrier} #{rate.service.humanize} #{rate.id}",
             :cost => rate.rate,
             :easy_post_shipment_id => rate.shipment_id,
             :easy_post_rate_id => rate.id
