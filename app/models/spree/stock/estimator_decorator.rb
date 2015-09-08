@@ -13,7 +13,7 @@ Spree::Stock::Estimator.class_eval do
   # that live in the admin console. These describe how we shipped things before
   # EasyPost, so presumably we can use them again.
   
-  #cut down easy post rates to 
+  #easy post smorgasboard of rates is filtered down to: 
   
   #USPS First - Free for orders of one unit
   #USPS Priority - Free for orders of multiple units
@@ -29,7 +29,7 @@ Spree::Stock::Estimator.class_eval do
     if easypost_rates.any?
 
       easypost_rates.each do |rate|
-        rate_name = "#{rate.carrier} #{rate.service.humanize}"
+
         if service_list.include? rate.service.humanize 
           package.shipping_rates << Spree::ShippingRate.new(
             :name => "#{rate.carrier} #{rate.service.humanize}",
@@ -38,6 +38,7 @@ Spree::Stock::Estimator.class_eval do
             :easy_post_rate_id => rate.id
           )
         end
+        
       end
     else
       # Fall back to one of the shipping methods in the admin panel so we can at
@@ -51,13 +52,16 @@ Spree::Stock::Estimator.class_eval do
     # In Bombsheller's case, we don't want to foot the bill for international
     # shipments, so we don't make those have a cost of 0.
     if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
+    
       made_free_option = false
       package.shipping_rates.each do |rate| 
+      
         if rate.name.include?("USPS") == true && made_free_option == false
           rate.cost = 0
           rate.save!
           made_free_option = true
         end
+        
       end      
     end
 
@@ -70,7 +74,8 @@ Spree::Stock::Estimator.class_eval do
   private
   
   def service_list 
-    ['First', 'Priority', 'Fedex express saver', 'Standard overnight']
+    ['First', 'Priority', 'Fedex express saver',
+     'Standard overnight', 'International priority', 'International economy']
   end
 
   def get_easypost_rates(package, order, international_shipment)
