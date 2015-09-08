@@ -53,7 +53,7 @@ Spree::Stock::Estimator.class_eval do
     if Spree::ShippingCategory.find_by_name('Free Shipping') && !international_shipment
       made_free_option = false
       package.shipping_rates.each do |rate| 
-        if rate.name.include? == "USPS" && made_free_option == false
+        if rate.name.include?("USPS") == true && made_free_option == false
           rate.cost = 0
           rate.save!
           made_free_option = true
