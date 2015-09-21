@@ -13,7 +13,7 @@ Spree::Stock::Estimator.class_eval do
   # that live in the admin console. These describe how we shipped things before
   # EasyPost, so presumably we can use them again.
   
-  #easy post smorgasboard of rates is filtered down to: 
+  #EasyPost's smorgasboard of rates is filtered down to: 
   
   #USPS First - Free for orders of one unit
   #USPS Priority - Free for orders of multiple units
@@ -30,9 +30,9 @@ Spree::Stock::Estimator.class_eval do
 
       easypost_rates.each do |rate|
 
-        if service_list.include? rate.service.humanize 
+        if service_available rate 
           package.shipping_rates << Spree::ShippingRate.new(
-            :name => "#{rate.carrier} #{rate.service.humanize}",
+            :name => "#{rate.carrier} #{rate.service.titleize}",
             :cost => rate.rate,
             :easy_post_shipment_id => rate.shipment_id,
             :easy_post_rate_id => rate.id
@@ -73,9 +73,17 @@ Spree::Stock::Estimator.class_eval do
 
   private
   
+  # list of services at https://www.easypost.com/service-levels-and-parcels
+  # currently USPS and FedEx are the only approved carriers
+  # this can be changed by logging in to EasyPost
+  
   def service_list 
-    ['First', 'Priority', 'Fedex express saver',
-     'Standard overnight', 'International priority', 'International economy']
+    ['First', 'Priority', 'FEDEX_EXPRESS_SAVER',
+     'STANDARD_OVERNIGHT', 'INTERNATIONAL_ECONOMY', 'INTERNATIONAL_PRIORITY']
+  end
+  
+  def service_available rate
+    service_list.include? rate.service
   end
 
   def get_easypost_rates(package, order, international_shipment)
