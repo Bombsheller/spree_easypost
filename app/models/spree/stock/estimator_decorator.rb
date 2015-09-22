@@ -29,8 +29,9 @@ Spree::Stock::Estimator.class_eval do
     if easypost_rates.any?
 
       easypost_rates.each do |rate|
-
-        if service_available rate 
+       
+      if should_filter 
+        if service_available rate
           package.shipping_rates << Spree::ShippingRate.new(
             :name => "#{rate.carrier} #{rate.service.titleize}",
             :cost => rate.rate,
@@ -38,6 +39,14 @@ Spree::Stock::Estimator.class_eval do
             :easy_post_rate_id => rate.id
           )
         end
+      else
+         package.shipping_rates << Spree::ShippingRate.new(
+            :name => "#{rate.carrier} #{rate.service.titleize}",
+            :cost => rate.rate,
+            :easy_post_shipment_id => rate.shipment_id,
+            :easy_post_rate_id => rate.id
+          ) 
+      end  
         
       end
     else
@@ -78,12 +87,19 @@ Spree::Stock::Estimator.class_eval do
   # this can be changed by logging in to EasyPost
   
   def service_list 
-    ['First', 'Priority', 'FEDEX_EXPRESS_SAVER',
-     'STANDARD_OVERNIGHT', 'INTERNATIONAL_ECONOMY', 'INTERNATIONAL_PRIORITY']
+    Spree::EasyPost.configuration.filter_services_list
+  end
+  
+  def should_filter
+    service_list.length > 0
   end
   
   def service_available rate
     service_list.include? rate.service
+  end
+  
+  def create_shipping_rate 
+  
   end
 
   def get_easypost_rates(package, order, international_shipment)
