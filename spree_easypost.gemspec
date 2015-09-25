@@ -2,7 +2,7 @@
 Gem::Specification.new do |s|
   s.platform    = Gem::Platform::RUBY
   s.name        = 'spree_easypost'
-  s.version     = '2.3.7'
+  s.version     = '2.3.8'
   s.summary     = 'Connect Spree storefronts to EasyPost for shipping and shipping labels.'
   s.required_ruby_version = '>= 1.9.3'
 
