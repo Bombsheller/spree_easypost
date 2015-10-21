@@ -87,7 +87,11 @@ Spree::Stock::Estimator.class_eval do
   # this can be changed by logging in to EasyPost
   
   def service_list 
-    Spree::EasyPost.configuration.filter_services_list
+    if Spree::EasyPost.configuration 
+      Spree::EasyPost.configuration.filter_services_list
+    else
+      service_list = []
+    end  
   end
   
   def should_filter
@@ -96,10 +100,6 @@ Spree::Stock::Estimator.class_eval do
   
   def service_available rate
     service_list.include? rate.service
-  end
-  
-  def create_shipping_rate 
-  
   end
 
   def get_easypost_rates(package, order, international_shipment)
